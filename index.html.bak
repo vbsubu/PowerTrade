@@ -1,0 +1,473 @@
+<html>
+<head>
+ 
+<link rel="stylesheet" href="jquery-ui.css">
+
+  <script src="jquery.js"></script>
+  <script src="jquery-ui.js"></script>
+ <script>
+	 var url = 'scrips.html';
+       
+    	var lines;
+
+	$(document).ready(function(){
+  		$.get(url, function (data) {		 
+            			$(".resultfromfile").html(data);
+			var result = '';
+            			$(".resultfromfile > tr").each(function () {
+                	result += $(this).find(".scrip").text().replace(":EQ", "").trim()  + '|' + $(this).find(".mis").text().replace("x", "").trim() +'\n';
+            			});
+            			lines = result.split('\n');
+        		});		 
+  	});
+
+	function loaddata(t) {
+		var suggestions = [];
+	    	$.each(lines, function(n, elem) {
+			var sc = elem.split("|");
+			suggestions.push(sc[0]);
+		});      
+
+		$(t).autocomplete({
+			delay: 500,
+			autoFocus : true,
+			source: suggestions		
+		    });
+	  }
+
+	function onscrip(obj, id) {
+		loaddata(obj);
+		$("#txtLev" + id).val('');
+		var ss = $(obj).val();
+		$.each(lines, function(n, elem) {
+		var scrip = elem.split("|");
+		if (ss == scrip[0])
+			{
+				$("#txtLev" + id).val(scrip[1]);
+			}
+		});
+		 CalculateTax(id);
+	}
+function AddRow()
+	{
+	var item = $('#tblContent');
+	$('#tblContent').append();
+
+}
+function CalculateTax(id)
+{
+	var lev =  $("#txtLev" + id).val();
+	var cash = parseFloat($("#txtCash" + id).val());
+	var buy = parseFloat($("#txtBuy" + id).val());
+
+	var margin = (cash>0 && buy>0) ? Math.round( (cash / buy ) *lev, 0) : '';
+	$("#txtQuantity" + id).val(margin);
+
+	
+	var sell = parseFloat($("#txtSell" + id).val());
+	var quantity = parseFloat($("#txtQuantity" + id).val(), 0);
+	
+	
+	var brokerage = CalculateBrockerage(buy, sell, quantity);
+	var STT =CalculateSTT(sell, quantity);
+	var TXN = CalculateTXN(buy, sell, quantity);
+	var GST =CalculateGST(brokerage+TXN);
+	var SEBI = CalculateSEBICharges(buy, sell, quantity);
+	var StampDuty = CalculateStampDuty(buy, sell, quantity);
+
+	var beforeTax = (((sell -buy) * quantity));
+	var totaltax = (brokerage+STT+TXN+GST+SEBI+StampDuty) 
+	var profit =   (((sell -buy) * quantity) - totaltax);
+	
+	if (!isNaN(beforeTax))
+		$("#dvTotalBeforeTax"+id).html(beforeTax.toFixed(2));
+	else
+	   	$("#dvTotalBeforeTax"+id).html('');
+	if (!isNaN(totaltax))
+		$("#dvTotalCharges"+id).html(totaltax.toFixed(2));
+	else
+		$("#dvTotalCharges"+id).html('');
+	if (!isNaN(profit))
+		$("#dvOutput"+id).html(profit.toFixed(2));
+	else
+		$("#dvOutput"+id).html('');
+	LineTotalBeforeTax();
+	LineTotalTax() ;
+	LineTotalProfit();
+
+	if (profit>0)
+	{
+		$("#dvOutput" + id).attr("class", "result profit");
+	}
+	else if(profit==0)
+	{
+		$("#dvOutput" + id).attr("class", "result flat");
+	}
+	else
+	{
+		$("#dvOutput" + id).attr("class", "result loss");
+	}
+}
+
+function LineTotalTax() {
+	var totaltax = 0;
+	$("div[id^='dvTotalCharges']").each(function() {
+		if ($(this).html()!=''){
+	 	totaltax += !isNaN($(this).html()) ? parseFloat($(this).html() ): 0;
+}
+	    });
+	$("#dvTotalChargesFinal").html('Tax : ' + totaltax.toFixed(2));
+	}
+
+function LineTotalBeforeTax() {
+	var total = 0;
+	$("div[id^='dvTotalBeforeTax']").each(function() {
+		if ($(this).html()!=''){
+	 	total += !isNaN($(this).html()) ? parseFloat($(this).html() ): 0;
+}
+	    });
+	$("#dvTotalBeforeTaxFinal").html('Before Tax : ' + total.toFixed(2));
+	}
+
+function LineTotalProfit() {
+	var profit = 0;
+	$("div[id^='dvOutput']").each(function() {
+		if ($(this).html()!='')
+	 	profit+= !isNaN($(this).html()) ? parseFloat($(this).html() ): 0;
+	    });
+	$("#dvOutputFinal").html('P/L : ' + profit.toFixed(2));
+	$("#txtCashAfter").val( ( profit + parseFloat($("#txtCashinhand").val())).toFixed(2));
+if (profit>0)
+	{
+		$("#dvOutputFinal").attr("class", "result profit");
+	}
+	else if(profit==0)
+	{
+		$("#dvOutputFinal").attr("class", "result flat");
+	}
+	else
+	{
+		$("#dvOutputFinal").attr("class", "result loss");
+	}
+	
+}
+ 
+function CalculateBrockerage(buy, sell, quantity)
+{
+	var total = (((buy + sell)*quantity)*0.01)/100;
+	if (total>40)
+	{
+		total = 40;
+	}
+	return total;
+}
+
+function CalculateSTT(sell, quantity)
+{
+	var total =((sell*quantity)*0.025)/100;
+	return total;
+}
+
+function CalculateTXN(buy, sell, quantity)
+{
+	var total = (((buy + sell)*quantity)*0.00325)/100;
+	return total;
+}
+
+function CalculateGST(t)
+{
+	var total = ((t)*18)/100;
+	return total;
+
+}
+
+function CalculateSEBICharges(buy, sell, quantity)
+{
+		var total = (((buy + sell)*quantity)*0.00015)/100;
+		return total;
+}
+
+function CalculateStampDuty(buy, sell, quantity)
+{
+		var total = (((buy + sell)*quantity)*0.002)/100;
+		return total;
+}
+
+function absFloor(num, pos) {
+  num += '';
+  return num.substring(0,num.length-pos) + ('' + Math.pow(5, pos)).substring(1);
+}
+
+function RemoveRow(id)
+{
+	if (confirm('Are you sure?')) {
+	$("#tags" + id).val('');
+	$("#txtLev" + id).val('');
+	$("#txtCash" + id).val('');
+	$("#txtBuy" + id).val('');
+	$("#txtSell" + id).val('');
+	$("#txtQuantity" + id).val('');
+	CalculateTax(id);
+ }
+}
+</script><style>
+	.result{
+		font-weight:bold;
+		font-size:14px;
+		text-align:right;
+		border:1px solid;
+		min-height:15px;
+		width:150px;
+		padding:3px;
+	}
+	.profit{
+		color:green;
+	}
+	.loss{
+		color:red;
+	}
+	.flat{
+		color:black;
+	}
+.row {
+	border-bottom: 1px solid black !important;
+	height:30px;
+
+}
+.container{
+
+	border: solid black 0px;
+	  border-collapse: collapse;
+}
+.container td{
+	border: solid black 0px;
+	border-collapse: collapse;
+	padding:4px;
+}
+
+</style>
+</head>
+<body>
+<table>
+	<tr>
+	<td>
+<table><tr>
+		<td>Cash In</td><td><input type=text id="txtCashinhand"></td>
+		<td>Cash Out</td><td><input type=text id="txtCashAfter"></td>
+	</tr>
+	</table>
+<table id="tblContent" class="container" cellspacing="0" cellpadding="0">
+	
+	<tr id="row1">
+		<td>&nbsp;</td><td>Sr. #</td>
+		<td>&nbsp;</td><td>Scrip </td>
+		<td>&nbsp;</td><td>Margin </td>
+		<td>&nbsp;</td><td>Cash</td>
+		<td>&nbsp;</td><td>Buy</td>
+		<td>&nbsp;</td><td>Sell</td>
+		<td>&nbsp;</td><td>Quantity</td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td>Before Tax</td>
+		<td>Tax</td>
+		<td>Profit/Loss</td>
+	</tr>
+
+
+	<tr id="row1">
+		<td>&nbsp;</td><td>1.</td>
+		<td>&nbsp;</td><td><input id="tags1" onkeyup="onscrip(this, '1')" onblur="onscrip(this, '1')" onfocus="onscrip(this, '1')" style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev1" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input type="number" step="100" id="txtCash1" onkeyup="CalculateTax('1')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input id="txtBuy1" onkeyup="CalculateTax('1')"  type="number" step="0.05" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input id="txtSell1" onkeyup="CalculateTax('1')" type="number" step="0.05" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity1" onkeyup="CalculateTax('1')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax1"></td>
+		<td><div class="result" id="dvTotalCharges1"></td>
+		<td><div class="result loss" id="dvOutput1"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(1)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+	<tr id="row2">
+		<td>&nbsp;</td><td>2.</td>
+		<td>&nbsp;</td><td><input id="tags2" onkeyup="onscrip(this, '2')" onblur="onscrip(this, '2')" onfocus="onscrip(this, '2')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev2" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash2" onkeyup="CalculateTax('2')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy2" onkeyup="CalculateTax('2')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell2" onkeyup="CalculateTax('2')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity2" onkeyup="CalculateTax('2')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax2"></td>
+		<td><div class="result" id="dvTotalCharges2"></td>
+		<td><div class="result loss" id="dvOutput2"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(2)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+<tr id="row3">
+		<td>&nbsp;</td><td>3.</td>
+		<td>&nbsp;</td><td><input id="tags3" onkeyup="onscrip(this, '3')" onblur="onscrip(this, '3')" onfocus="onscrip(this, '3')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev3" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash3" onkeyup="CalculateTax('3')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy3" onkeyup="CalculateTax('3')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell3" onkeyup="CalculateTax('3')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity3" onkeyup="CalculateTax('3')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax3"></td>
+		<td><div class="result" id="dvTotalCharges3"></td>
+		<td><div class="result loss" id="dvOutput3"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(3)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+<tr id="row4">
+		<td>&nbsp;</td><td>4.</td>
+		<td>&nbsp;</td><td><input id="tags4" onkeyup="onscrip(this, '4')" onblur="onscrip(this, '4')" onfocus="onscrip(this, '4')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev4" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash4" onkeyup="CalculateTax('4')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy4" onkeyup="CalculateTax('4')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell4" onkeyup="CalculateTax('4')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity4" onkeyup="CalculateTax('4')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax4"></td>
+		<td><div class="result" id="dvTotalCharges4"></td>
+		<td><div class="result loss" id="dvOutput4"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(4)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+
+<tr id="row5">
+		<td>&nbsp;</td><td>5.</td>
+		<td>&nbsp;</td><td><input id="tags5" onkeyup="onscrip(this, '5')" onblur="onscrip(this, '5')" onfocus="onscrip(this, '5')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev5" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash5" onkeyup="CalculateTax('5')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy5" onkeyup="CalculateTax('5')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell5" onkeyup="CalculateTax('5')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity5" onkeyup="CalculateTax('5')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax5"></td>
+		<td><div class="result" id="dvTotalCharges5"></td>
+		<td><div class="result loss" id="dvOutput5"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(5)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+
+
+<tr id="row6">
+		<td>&nbsp;</td><td>6.</td>
+		<td>&nbsp;</td><td><input id="tags6" onkeyup="onscrip(this, '6')" onblur="onscrip(this, '6')" onfocus="onscrip(this, '6')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev6" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash6" onkeyup="CalculateTax('6')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy6" onkeyup="CalculateTax('6')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell6" onkeyup="CalculateTax('6')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity6" onkeyup="CalculateTax('6')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax6"></td>
+		<td><div class="result" id="dvTotalCharges6"></td>
+		<td><div class="result loss" id="dvOutput6"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(6)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+
+<tr id="row7">
+		<td>&nbsp;</td><td>7.</td>
+		<td>&nbsp;</td><td><input id="tags7" onkeyup="onscrip(this, '7')" onblur="onscrip(this, '7')" onfocus="onscrip(this, '7')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev7" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash7" onkeyup="CalculateTax('7')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy7" onkeyup="CalculateTax('7')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell7" onkeyup="CalculateTax('7')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity7" onkeyup="CalculateTax('7')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax7"></td>
+		<td><div class="result" id="dvTotalCharges7"></td>
+		<td><div class="result loss" id="dvOutput7"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(7)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+
+<tr id="row8">
+		<td>&nbsp;</td><td>8.</td>
+		<td>&nbsp;</td><td><input id="tags8" onkeyup="onscrip(this, '8')" onblur="onscrip(this, '8')" onfocus="onscrip(this, '8')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev8" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash8" onkeyup="CalculateTax('8')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy8" onkeyup="CalculateTax('8')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell8" onkeyup="CalculateTax('8')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity8" onkeyup="CalculateTax('8')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax8"></td>
+		<td><div class="result" id="dvTotalCharges8"></td>
+		<td><div class="result loss" id="dvOutput8"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(8)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+
+<tr id="row9">
+		<td>&nbsp;</td><td>9.</td>
+		<td>&nbsp;</td><td><input id="tags9" onkeyup="onscrip(this, '9')" onblur="onscrip(this, '9')" onfocus="onscrip(this, '9')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev9" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash9" onkeyup="CalculateTax('9')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtBuy9" onkeyup="CalculateTax('9')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell9" onkeyup="CalculateTax('9')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity9" onkeyup="CalculateTax('9')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax9"></td>
+		<td><div class="result" id="dvTotalCharges9"></td>
+		<td><div class="result loss" id="dvOutput9"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(9)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+<tr id="row10">
+		<td>&nbsp;</td><td>10.</td>
+		<td>&nbsp;</td><td><input id="tags10" onkeyup="onscrip(this, '10')" onblur="onscrip(this, '10')" onfocus="onscrip(this, '10')"  style="width:150px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtLev10" style="width:50px;"></td>
+
+		<td>&nbsp;</td><td><input  type="number" step="100" id="txtCash10" onkeyup="CalculateTax('10')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input  type="number" step="0.05" id="txtBuy10" onkeyup="CalculateTax('10')" style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="number" step="0.05" id="txtSell10" onkeyup="CalculateTax('10')"  style="width:70px;"></td>
+		<td>&nbsp;</td><td><input type="text" id="txtQuantity10" onkeyup="CalculateTax('10')"  style="width:70px;"></td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTax10"></td>
+		<td><div class="result" id="dvTotalCharges10"></td>
+		<td><div class="result loss" id="dvOutput10"></td>
+		<td><input type="button" value="X" onclick="RemoveRow(10)">&nbsp;&nbsp;&nbsp;</td>
+	</tr>
+
+
+<tr id="row10">
+		<td>&nbsp;</td><td>&nbsp;</td>
+		<td>&nbsp;</td><td>&nbsp;</td>
+		<td>&nbsp;</td><td>&nbsp;</td>
+
+		<td>&nbsp;</td><td>&nbsp;</td>
+		<td>&nbsp;</td><td>&nbsp;</td>
+		<td>&nbsp;</td><td>&nbsp;</td>
+		<td>&nbsp;</td><td>&nbsp;</td>
+		<td>&nbsp;</td>
+		<td><div class="result" id="dvTotalBeforeTaxFinal"></td>
+		<td><div class="result" id="dvTotalChargesFinal"></td>
+		<td><div class="result loss" id="dvOutputFinal"></td>
+	</tr>
+
+<table>
+
+</td></tr></table>
+ <div class="resultfromfile"  style=";">dsfsdaf</div>
+   </body>
+</html>
+
+
